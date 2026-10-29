@@ -5,6 +5,7 @@ from langgraph.graph import StateGraph, START, END
 
 from state import IncidentState
 from tools import (
+    get_connection_pool_status,
     get_service_health, 
     get_recent_logs,
     check_database_health,
@@ -58,6 +59,19 @@ TOOLS = [
             },
             "required": ["service_name"]
         }
+    },
+    {
+        "name": "get_connection_pool_status",
+        "description": "Inspect the application's database connection pool. "
+            "Use this when evidence suggests connection acquisition, "
+            "pool exhaustion, or application-side database connectivity problems.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "service_name": {"type": "string"}
+            },
+            "required": ["service_name"]
+        }
     }
 ]
 
@@ -90,6 +104,9 @@ def call_tool(name, tool_input):
     if name == "get_recent_deployments":
         return get_recent_deployments(**tool_input)
 
+    if name == "get_connection_pool_status":
+        return get_connection_pool_status(**tool_input)
+
     raise ValueError(f"Unknown tool: {name}")
 
 def initialize_incident(state: IncidentState):
@@ -113,12 +130,87 @@ def initialize_incident(state: IncidentState):
         ]
     }
 
+def baseline_diagnostics_node(state: IncidentState):
+    print("\n[Graph] Running baseline diagnostics")
+
+    service_name = state["service_name"]
+
+    baseline_calls = [
+        {
+            "name": "get_service_health",
+            "input": {"service_name": service_name}
+        },
+        {
+            "name": "get_recent_logs",
+            "input": {
+                "service_name": service_name,
+                "minutes": 30
+            }
+        },
+        {
+            "name": "check_database_health",
+            "input": {"service_name": service_name}
+        },
+        {
+            "name": "get_recent_deployments",
+            "input": {"service_name": service_name}
+        }
+    ]
+
+    evidence = []
+    tools_used = []
+
+    for tool_call in baseline_calls:
+        result = call_tool(
+            tool_call["name"],
+            tool_call["input"]
+        )
+
+        print(
+            f"[Graph] {tool_call['name']} → {result}"
+        )
+
+        evidence.append({
+            "tool": tool_call["name"],
+            "input": tool_call["input"],
+            "result": result
+        })
+
+        tools_used.append(tool_call["name"])
+
+    evidence_summary = json.dumps(
+        evidence,
+        indent=2
+    )
+
+    messages = [
+        {
+            "role": "user",
+            "content": (
+                f"Investigate this incident:\n"
+                f"{state['incident']}\n\n"
+                f"Baseline diagnostic evidence:\n"
+                f"{evidence_summary}\n\n"
+                "Use targeted diagnostic tools only if additional "
+                "evidence is needed."
+            )
+        }
+    ]
+
+    return {
+        "tools_used": tools_used,
+        "evidence": evidence,
+        "messages": messages,
+        "iteration_count": 0,
+        "pending_tool_calls": []
+    }
+
 def agent_node(state: IncidentState):
     print("\n[Graph] Agent reasoning")
 
     response = client.messages.create(
         model="claude-haiku-5-5",
-        max_tokens=1200,
+        max_tokens=1800,
         system=SYSTEM_PROMPT,
         tools=TOOLS,
         messages=state["messages"]
@@ -348,6 +440,11 @@ builder.add_node(
 )
 
 builder.add_node(
+    "baseline_diagnostics",
+    baseline_diagnostics_node
+)
+
+builder.add_node(
     "agent",
     agent_node
 )
@@ -363,6 +460,11 @@ builder.add_edge(
 
 builder.add_edge(
     "initialize_incident",
+    "baseline_diagnostics"
+)
+
+builder.add_edge(
+    "baseline_diagnostics",
     "agent"
 )
 

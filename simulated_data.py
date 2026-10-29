@@ -29,9 +29,18 @@ services = {
 
     "database": {
         "status": "HEALTHY",
-        "active_connections": 8,
+        "total_connections": 28,
+        "active_queries": 8,
         "max_connections": 50,
         "average_query_ms": 12
+    },
+
+    "connection_pool": {
+    "max_pool_size": 20,
+    "active_connections": 20,
+    "idle_connections": 0,
+    "waiting_requests": 14,
+    "acquisition_timeout_ms": 3000
     },
 
     "recent_deployment": {

@@ -58,3 +58,22 @@ def get_recent_deployments(service_name):
         "service": service_name,
         "deployment": service["recent_deployment"]
     }
+
+def get_connection_pool_status(service_name):
+    service = services.get(service_name)
+
+    if not service:
+        return {
+            "error": f"Unknown service: {service_name}"
+        }
+
+    pool_status = service.get("connection_pool")
+
+    if not pool_status:
+        return {
+            "error": f"No connection pool information available for service: {service_name}"
+        }
+    return {
+        "service": service_name,
+        "connection_pool": service["connection_pool"]
+    }
