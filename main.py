@@ -20,17 +20,51 @@
 # print("\nDEPLOYMENT:")
 # print(get_recent_deployments(service_name))
 
-from agent import investigate_incident
+
+#version 2.4.1
+# from agent import investigate_incident
 
 
-incident = """
-Investigate why payment-service is returning HTTP 500 errors.
-"""
+# incident = """
+# Investigate why payment-service is returning HTTP 500 errors.
+# """
 
-print("INCIDENT:")
-print(incident)
+# print("INCIDENT:")
+# print(incident)
 
-result = investigate_incident(incident)
+# result = investigate_incident(incident)
+
+# print("\nFINAL DIAGNOSIS:")
+# print(result)
+
+from graph import incident_graph
+
+initial_state = {
+    "incident": "Investigate why payment-service is returning HTTP 500 errors.",
+    "service_name": "payment-service",
+    "tools_used": [],
+    "evidence": [],
+    "suspected_cause": None,
+    "recommended_action": None,
+    "final_diagnosis": None,
+    "iteration_count": 0,
+    #"pending_tool_name": None,
+    #"pending_tool_input": None,
+    "pending_tool_calls": [],
+    "messages": []
+}
+
+result = incident_graph.invoke(initial_state)
+
+print("\nTOOLS USED:")
+print(result["tools_used"])
+
+print("\nEVIDENCE COLLECTED:")
+for item in result["evidence"]:
+    print(item)
 
 print("\nFINAL DIAGNOSIS:")
-print(result)
+print(result["final_diagnosis"])
+
+#print("\nFINAL STATE:")
+#print(result)
