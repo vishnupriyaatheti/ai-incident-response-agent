@@ -1,79 +1,53 @@
-from simulated_data import services
+import requests
 
+BASE_URL = "http://localhost:8080/api/monitoring/services"
 
 def get_service_health(service_name):
-    service = services.get(service_name)
+    response = requests.get(
+        f"{BASE_URL}/{service_name}/health",
+        timeout=5
+    )
 
-    if not service:
-        return {
-            "error": f"Unknown service: {service_name}"
-        }
-
-    return {
-        "service": service_name,
-        "status": service["status"],
-        "response_time_ms": service["response_time_ms"],
-        "error_rate": service["error_rate"]
-    }
+    response.raise_for_status()
+    return response.json()
 
 
 def get_recent_logs(service_name, minutes=30):
-    service = services.get(service_name)
+    response = requests.get(
+        f"{BASE_URL}/{service_name}/logs",
+        params={"minutes": minutes},
+        timeout=5
+    )
 
-    if not service:
-        return {
-            "error": f"Unknown service: {service_name}"
-        }
-
-    return {
-        "service": service_name,
-        "minutes": minutes,
-        "logs": service["logs"]
-    }
+    response.raise_for_status()
+    return response.json()
 
 
 def check_database_health(service_name):
-    service = services.get(service_name)
+    response = requests.get(
+        f"{BASE_URL}/{service_name}/database",
+        timeout=5
+    )
 
-    if not service:
-        return {
-            "error": f"Unknown service: {service_name}"
-        }
-
-    return {
-        "service": service_name,
-        "database": service["database"]
-    }
+    response.raise_for_status()
+    return response.json()
 
 
 def get_recent_deployments(service_name):
-    service = services.get(service_name)
+    response = requests.get(
+        f"{BASE_URL}/{service_name}/deployments",
+        timeout=5
+    )
 
-    if not service:
-        return {
-            "error": f"Unknown service: {service_name}"
-        }
+    response.raise_for_status()
+    return response.json()
 
-    return {
-        "service": service_name,
-        "deployment": service["recent_deployment"]
-    }
 
 def get_connection_pool_status(service_name):
-    service = services.get(service_name)
+    response = requests.get(
+        f"{BASE_URL}/{service_name}/connection-pool",
+        timeout=5
+    )
 
-    if not service:
-        return {
-            "error": f"Unknown service: {service_name}"
-        }
-
-    pool_status = service.get("connection_pool")
-
-    if not pool_status:
-        return {
-            "error": f"No connection pool information available for service: {service_name}"
-        }
-    return {
-        "service": service_name,
-        "connection_pool": service["connection_pool"]
-    }
+    response.raise_for_status()
+    return response.json()
