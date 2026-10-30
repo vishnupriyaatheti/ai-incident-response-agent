@@ -3,3 +3,4 @@ anthropic
 python-dotenv
 langgraph
 requests
+mcp[cli]

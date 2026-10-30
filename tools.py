@@ -1,15 +1,15 @@
+from mcp_client import call_mcp_tool_sync
 import requests
 
 BASE_URL = "http://localhost:8080/api/monitoring/services"
 
 def get_service_health(service_name):
-    response = requests.get(
-        f"{BASE_URL}/{service_name}/health",
-        timeout=5
+    return call_mcp_tool_sync(
+        "get_service_health",
+        {
+            "service_name": service_name
+        }
     )
-
-    response.raise_for_status()
-    return response.json()
 
 
 def get_recent_logs(service_name, minutes=30):
@@ -44,10 +44,9 @@ def get_recent_deployments(service_name):
 
 
 def get_connection_pool_status(service_name):
-    response = requests.get(
-        f"{BASE_URL}/{service_name}/connection-pool",
-        timeout=5
+    return call_mcp_tool_sync(
+        "get_connection_pool_status",
+        {
+            "service_name": service_name
+        }
     )
-
-    response.raise_for_status()
-    return response.json()
