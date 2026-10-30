@@ -18,3 +18,7 @@ class IncidentState(TypedDict):
     #pending_tool_input: Optional[dict]
     pending_tool_calls: list[dict]
     messages: list
+
+    approval_required: bool
+    approval_status: Optional[str]
+    action_executed: bool

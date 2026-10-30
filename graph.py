@@ -9,7 +9,9 @@ from tools import (
     get_service_health, 
     get_recent_logs,
     check_database_health,
-    get_recent_deployments
+    get_recent_deployments,
+    rollback_deployment
+
 )
 
 load_dotenv()
@@ -333,7 +335,52 @@ def agent_node(state: IncidentState):
 #             }
 
 
+def approval_node(state: IncidentState):
+    print("\n[Graph] Human approval required")
 
+    print(
+        f"Recommended action: rollback {state['service_name']} "
+        f"to the previous version"
+    )
+
+    answer = input("Approve rollback? (yes/no): ").strip().lower()
+
+    if answer in {"yes", "y"}:
+        return {
+            "approval_required": True,
+            "approval_status": "APPROVED"
+        }
+
+    return {
+        "approval_required": True,
+        "approval_status": "REJECTED"
+    }
+
+
+def execute_action_node(state: IncidentState):
+    print("\n[Graph] Executing approved action")
+
+    result = rollback_deployment(
+        state["service_name"]
+    )
+
+    print(f"[Graph] Action result: {result}")
+
+    return {
+        "action_executed": True,
+          "tools_used": state["tools_used"] + [
+            "rollback_deployment"
+        ],
+        "evidence": state["evidence"] + [
+            {
+                "tool": "rollback_deployment",
+                "input": {
+                    "service_name": state["service_name"]
+                },
+                "result": result
+            }
+        ]
+    }
 def execute_tool_node(state: IncidentState):
 
     pending_calls = state["pending_tool_calls"]
@@ -409,10 +456,25 @@ def execute_tool_node(state: IncidentState):
         "pending_tool_calls": []
     }
 
+def finalize_after_action_node(state: IncidentState):
+    print("\n[Graph] Finalizing incident after remediation")
 
+    updated_diagnosis = (
+        state["final_diagnosis"]
+        + "\n\n## Remediation status\n\n"
+        + f"Human approval was granted. "
+        + f"{state['service_name']} was successfully rolled back "
+        + "from version 2.4.1 to version 2.4.0."
+        + "\n\nThe next step is to verify recovery by checking "
+        + "service health, error rate, and connection-pool status."
+    )
+
+    return {
+        "final_diagnosis": updated_diagnosis
+    }
 def route_after_agent(state: IncidentState):
     if state["final_diagnosis"]:
-        return "end"
+        return "approval"
 
     if state["iteration_count"] >= 10:
         return "end"
@@ -429,6 +491,13 @@ def route_after_agent(state: IncidentState):
     #     return "end"
 
     # return "tool"
+
+def route_after_approval(state: IncidentState):
+    if state["approval_status"] == "APPROVED":
+        return "execute"
+
+    return "end"
+
 
 
 builder = StateGraph(IncidentState)
@@ -453,6 +522,20 @@ builder.add_node(
     execute_tool_node
 )
 
+builder.add_node(
+    "approval",
+    approval_node
+)
+
+builder.add_node(
+    "execute_action",
+    execute_action_node
+)
+
+builder.add_node(
+    "finalize_after_action",
+    finalize_after_action_node
+)
 builder.add_edge(
     START,
     "initialize_incident"
@@ -473,14 +556,34 @@ builder.add_conditional_edges(
     route_after_agent,
     {
         "tool": "execute_tool",
+        "approval": "approval",
         "end": END
     }
 )
+
+builder.add_conditional_edges(
+    "approval",
+    route_after_approval,
+    {
+        "execute": "execute_action",
+        "end": END
+    }
+)
+
+builder.add_edge(
+    "execute_action",
+    "finalize_after_action"
+)
+
 
 builder.add_edge(
     "execute_tool",
     "agent"
 )
 
+builder.add_edge(
+    "finalize_after_action",
+    END
+)
 
 incident_graph = builder.compile()

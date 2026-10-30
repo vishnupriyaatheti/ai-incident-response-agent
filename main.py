@@ -51,7 +51,10 @@ initial_state = {
     #"pending_tool_name": None,
     #"pending_tool_input": None,
     "pending_tool_calls": [],
-    "messages": []
+    "messages": [],
+    "approval_required": False,
+    "approval_status": None,
+    "action_executed": False,
 }
 
 result = incident_graph.invoke(initial_state)

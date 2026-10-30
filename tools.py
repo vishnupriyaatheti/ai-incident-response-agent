@@ -50,3 +50,12 @@ def get_connection_pool_status(service_name):
             "service_name": service_name
         }
     )
+
+def rollback_deployment(service_name):
+    return {
+        "service": service_name,
+        "action": "rollback",
+        "from_version": "2.4.1",
+        "to_version": "2.4.0",
+        "status": "SUCCESS"
+    }
